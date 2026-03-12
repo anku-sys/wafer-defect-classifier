@@ -98,36 +98,26 @@ with tab1:
 
 # --- TAB 2: The New Image Uploader ---
 with tab2:
-    st.subheader("Upload a Custom Wafer Map")
-    st.write("Upload any image of a semiconductor wafer. The AI will shrink it, convert it to grayscale, and analyze the defect pattern.")
-    
-    # The drag-and-drop uploader
-    uploaded_file = st.file_uploader("Choose a file", type=["png", "jpg", "jpeg"])
+    st.subheader("Upload a Custom Wafer Photo")
+    uploaded_file = st.file_uploader("Choose a wafer photo...", type=["png", "jpg", "jpeg"])
     
     if uploaded_file is not None:
-        # 1. Open the user's image
         user_image = Image.open(uploaded_file)
         
-        # 2. Preprocess it to match the AI's training (64x64, grayscale)
-        processed_image = ImageOps.grayscale(user_image)
-        processed_image = processed_image.resize((64, 64))
+        # USE OUR NEW PIPELINE
+        input_data = process_real_photo(user_image)
         
-        # 3. Convert it to a math array and format it for the neural network
-        img_array = np.array(processed_image)
-        input_image = img_array.reshape(1, 64, 64, 1)
+        # Predict
+        prediction_prob = model.predict(input_data)
+        predicted_label = defect_labels[np.argmax(prediction_prob)]
         
-        # 4. Make the prediction
-        prediction_prob = model.predict(input_image)
-        predicted_label_id = np.argmax(prediction_prob)
-        predicted_label = defect_labels[predicted_label_id]
-        confidence = np.max(prediction_prob) * 100
-        
-        # 5. Show the results
-        col1, col2 = st.columns([1, 1])
+        col1, col2 = st.columns(2)
         with col1:
-            st.image(user_image, caption="Your Uploaded Image", width=300)
+            st.image(user_image, caption="Original Photo", use_column_width=True)
         with col2:
             st.write("### AI Analysis")
-            st.info(f"**Predicted Pattern:** {predicted_label}")
-            st.write(f"**Confidence:** {confidence:.1f}%")
+            st.success(f"**Detected Pattern:** {predicted_label}")
+            # Show the "Digital Version" so the user sees what the AI sees
+            st.write("How the AI 'sees' your photo:")
+            st.image(input_data.reshape(64,64), width=150)
 
