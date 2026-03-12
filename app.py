@@ -1,4 +1,5 @@
 import streamlit as st
+import cv2
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -16,6 +17,28 @@ def load_model():
     return tf.keras.models.load_model('wafer_model.keras')
 
 @st.cache_data
+def process_real_photo(image):
+    # 1. Convert PIL image to OpenCV format (BGR)
+    file_bytes = np.asarray(image.convert("RGB"))
+    img = cv2.cvtColor(file_bytes, cv2.COLOR_RGB2BGR)
+    
+    # 2. Convert to Grayscale
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    
+    # 3. Enhance Contrast (CLAHE) - This makes the scratch pop!
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    enhanced = clahe.apply(gray)
+    
+    # 4. Binary Thresholding (Turning it into 0s and 1s)
+    # We use Otsu's method to automatically find the best 'cutoff' for the scratch
+    _, thresh = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
+    # 5. Resize to 64x64 to match our AI's training
+    resized = cv2.resize(thresh, (64, 64), interpolation=cv2.INTER_AREA)
+    
+    # 6. Normalize (AI likes values between 0 and 1)
+    normalized = resized / 255.0
+    return normalized.reshape(1, 64, 64, 1)
 def load_data():
     X = np.load('X_test_web.npy')
     y = np.load('y_test_web.npy')
@@ -107,3 +130,4 @@ with tab2:
             st.write("### AI Analysis")
             st.info(f"**Predicted Pattern:** {predicted_label}")
             st.write(f"**Confidence:** {confidence:.1f}%")
+
